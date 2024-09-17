@@ -3,6 +3,7 @@ let symbol = '';
 let roomId = '';
 
 function connectWebSocket() {
+    // クライアントのWebSocket接続
     socket = new WebSocket('ws://localhost:8080');
 
     socket.onopen = function() {
@@ -44,7 +45,7 @@ function connectWebSocket() {
 
     socket.onclose = function() {
         console.log('WebSocket接続が閉じられました。');
-        setTimeout(connectWebSocket, 1000); // 再接続
+        setTimeout(connectWebSocket, 1000); // 1秒後に再接続
     };
 
     socket.onerror = function(error) {
@@ -52,4 +53,5 @@ function connectWebSocket() {
     };
 }
 
+// WebSocket接続を開始
 connectWebSocket();
