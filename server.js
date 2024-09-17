@@ -3,7 +3,10 @@ const http = require('http');
 
 // HTTPサーバーを作成
 const server = http.createServer();
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({
+    server,
+    perMessageDeflate: false  // Per-Message Deflateを無効にする
+});
 
 let rooms = {};  // ルームを格納（ルームIDごとにクライアントリストを保持）
 let players = {}; // 各プレイヤーの情報を格納
@@ -50,6 +53,7 @@ wss.on('connection', function connection(ws) {
         }
     });
 
+    // WebSocket接続が閉じられた場合の処理
     ws.on('close', function close() {
         const playerInfo = players[ws];
         if (playerInfo) {
@@ -59,6 +63,7 @@ wss.on('connection', function connection(ws) {
     });
 });
 
+// サーバーを8080ポートでリッスン
 server.listen(8080, function listening() {
     console.log('Listening on %d', server.address().port);
 });
