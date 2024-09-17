@@ -11,11 +11,13 @@ const wss = new WebSocket.Server({
 let rooms = {};  // ルームを格納
 let players = {}; // プレイヤーの状態
 
+// WebSocket接続イベント
 wss.on('connection', function connection(ws) {
     ws.on('message', function incoming(message) {
         const data = JSON.parse(message);
 
         switch (data.type) {
+            // ルーム作成
             case 'create_room':
                 const roomId = 'room_' + Date.now();
                 rooms[roomId] = [ws]; 
@@ -23,6 +25,7 @@ wss.on('connection', function connection(ws) {
                 ws.send(JSON.stringify({ type: 'room_created', roomId }));
                 break;
 
+            // ルームに参加
             case 'join_room':
                 if (rooms[data.roomId] && rooms[data.roomId].length === 1) {
                     rooms[data.roomId].push(ws);
@@ -33,11 +36,13 @@ wss.on('connection', function connection(ws) {
                 }
                 break;
 
+            // 動きがあった場合の処理
             case 'make_move':
                 const room = rooms[players[ws].roomId];
                 room.forEach(player => player.send(JSON.stringify({ type: 'move_made', position: data.position, symbol: players[ws].symbol })));
                 break;
 
+            // ルームを退出
             case 'leave_room':
                 const leaveRoomId = players[ws].roomId;
                 rooms[leaveRoomId] = rooms[leaveRoomId].filter(player => player !== ws);
@@ -55,6 +60,7 @@ wss.on('connection', function connection(ws) {
     });
 });
 
+// ポート8080でサーバーをリッスン
 server.listen(8080, function listening() {
     console.log('Listening on %d', server.address().port);
 });
