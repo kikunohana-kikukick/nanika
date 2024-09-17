@@ -1,67 +1,58 @@
-// server.js
-const express = require('express');
+const WebSocket = require('ws');
 const http = require('http');
-const socketIo = require('socket.io');
 
-const app = express();
-const server = http.createServer(app);
-const io = socketIo(server);
+// HTTPサーバーを作成
+const server = http.createServer();
+const wss = new WebSocket.Server({ server });
 
-const port = process.env.PORT || 3000;
+let rooms = {};  // ルームを格納
+let players = {}; // プレイヤーの状態
 
-let rooms = {};  // 各ゲームの部屋の管理
+// WebSocket接続イベント
+wss.on('connection', function connection(ws) {
+    ws.on('message', function incoming(message) {
+        const data = JSON.parse(message);
 
-// 新しい接続があったときの処理
-io.on('connection', (socket) => {
-    console.log('New player connected:', socket.id);
+        switch(data.type) {
+            case 'create_room':
+                const roomId = 'room_' + Date.now();
+                rooms[roomId] = [ws]; // ルームに作成者を追加
+                players[ws] = { roomId, symbol: 'X' }; // プレイヤーにシンボルを割り当て
+                ws.send(JSON.stringify({ type: 'room_created', roomId }));
+                break;
 
-    // 部屋に参加
-    socket.on('joinGame', (room) => {
-        socket.join(room);
-        if (!rooms[room]) rooms[room] = { players: [], board: Array(9).fill(null), turn: 'X' };
-        rooms[room].players.push(socket.id);
+            case 'join_room':
+                if (rooms[data.roomId] && rooms[data.roomId].length === 1) {
+                    rooms[data.roomId].push(ws);
+                    players[ws] = { roomId: data.roomId, symbol: 'O' }; // 参加者は 'O'
+                    rooms[data.roomId].forEach(player => player.send(JSON.stringify({ type: 'start_game' })));
+                } else {
+                    ws.send(JSON.stringify({ type: 'error', message: 'Room is full or does not exist.' }));
+                }
+                break;
 
-        if (rooms[room].players.length === 2) {
-            io.to(room).emit('startGame', rooms[room].turn);  // ゲーム開始
+            case 'make_move':
+                const room = rooms[players[ws].roomId];
+                room.forEach(player => player.send(JSON.stringify({ type: 'move_made', position: data.position, symbol: players[ws].symbol })));
+                break;
+
+            case 'leave_room':
+                const leaveRoomId = players[ws].roomId;
+                rooms[leaveRoomId] = rooms[leaveRoomId].filter(player => player !== ws);
+                ws.send(JSON.stringify({ type: 'left_room' }));
+                break;
         }
     });
 
-    // 盤面の更新
-    socket.on('makeMove', ({ room, index }) => {
-        let game = rooms[room];
-        if (!game || game.board[index] !== null) return;
-
-        game.board[index] = game.turn;
-        game.turn = game.turn === 'X' ? 'O' : 'X';  // ターンを交代
-        io.to(room).emit('updateBoard', game.board, game.turn);
-
-        // 勝利チェック（省略した関数を後ほど追加）
-        const winner = checkWinner(game.board);
-        if (winner) {
-            io.to(room).emit('gameOver', winner);
-            rooms[room] = null;  // ゲームをリセット
+    ws.on('close', function close() {
+        const playerInfo = players[ws];
+        if (playerInfo) {
+            const { roomId } = playerInfo;
+            rooms[roomId] = rooms[roomId].filter(player => player !== ws);
         }
     });
 });
 
-// サーバーを起動
-server.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+server.listen(8080, function listening() {
+    console.log('Listening on %d', server.address().port);
 });
-
-// 勝利条件のチェック
-function checkWinner(board) {
-    const winPatterns = [
-        [0, 1, 2], [3, 4, 5], [6, 7, 8], // 横
-        [0, 3, 6], [1, 4, 7], [2, 5, 8], // 縦
-        [0, 4, 8], [2, 4, 6]  // 斜め
-    ];
-
-    for (let pattern of winPatterns) {
-        const [a, b, c] = pattern;
-        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-            return board[a];
-        }
-    }
-    return board.includes(null) ? null : 'draw';
-}
