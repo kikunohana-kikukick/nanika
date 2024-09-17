@@ -1,0 +1,64 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>〇✕ゲーム</title>
+    <style>
+        /* 簡単なスタイル */
+        #gameBoard { display: grid; grid-template-columns: repeat(3, 100px); gap: 5px; }
+        .cell { width: 100px; height: 100px; font-size: 2em; text-align: center; cursor: pointer; background-color: lightgray; }
+    </style>
+</head>
+<body>
+    <h1>〇✕ゲーム</h1>
+    <div id="gameBoard">
+        <div class="cell" id="cell-0"></div>
+        <div class="cell" id="cell-1"></div>
+        <div class="cell" id="cell-2"></div>
+        <div class="cell" id="cell-3"></div>
+        <div class="cell" id="cell-4"></div>
+        <div class="cell" id="cell-5"></div>
+        <div class="cell" id="cell-6"></div>
+        <div class="cell" id="cell-7"></div>
+        <div class="cell" id="cell-8"></div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io.connect('http://localhost:3000'); // サーバーのURLに変更
+
+        const gameBoard = document.getElementById('gameBoard');
+        let playerSymbol = null;
+
+        // ゲームがスタートしたらプレイヤーのシンボルをセット
+        socket.on('startGame', (turn) => {
+            playerSymbol = turn === 'X' ? 'X' : 'O';
+            alert(`ゲーム開始！ あなたは ${playerSymbol} です。`);
+        });
+
+        // 盤面の更新
+        socket.on('updateBoard', (board, turn) => {
+            board.forEach((cell, index) => {
+                document.getElementById(`cell-${index}`).innerText = cell;
+            });
+        });
+
+        // クリックイベント
+        gameBoard.addEventListener('click', (e) => {
+            if (e.target.classList.contains('cell')) {
+                const index = e.target.id.split('-')[1];
+                socket.emit('makeMove', { room: 'defaultRoom', index });
+            }
+        });
+
+        // ゲームの結果
+        socket.on('gameOver', (winner) => {
+            alert(winner === 'draw' ? '引き分け！' : `${winner} の勝利！`);
+        });
+
+        // ゲームに参加
+        socket.emit('joinGame', 'defaultRoom');
+    </script>
+</body>
+</html>
