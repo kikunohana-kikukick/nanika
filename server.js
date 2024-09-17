@@ -5,13 +5,12 @@ const http = require('http');
 const server = http.createServer();
 const wss = new WebSocket.Server({
     server,
-    perMessageDeflate: false  // Per-Message Deflateを無効にする
+    perMessageDeflate: false  // 圧縮を無効化
 });
 
 let rooms = {};  // ルームを格納
 let players = {}; // プレイヤーの状態
 
-// WebSocket接続イベント
 wss.on('connection', function connection(ws) {
     ws.on('message', function incoming(message) {
         const data = JSON.parse(message);
@@ -19,8 +18,8 @@ wss.on('connection', function connection(ws) {
         switch (data.type) {
             case 'create_room':
                 const roomId = 'room_' + Date.now();
-                rooms[roomId] = [ws];
-                players[ws] = { roomId, symbol: 'X' };
+                rooms[roomId] = [ws]; 
+                players[ws] = { roomId, symbol: 'X' }; 
                 ws.send(JSON.stringify({ type: 'room_created', roomId }));
                 break;
 
