@@ -1,57 +1,62 @@
-let socket;
-let symbol = '';
-let roomId = '';
+const socket = new WebSocket('ws://localhost:3000');
+let playerSymbol = null;
 
-function connectWebSocket() {
-    // クライアントのWebSocket接続
-    socket = new WebSocket('ws://localhost:8080');
+document.getElementById('createRoom').addEventListener('click', () => {
+  socket.send(JSON.stringify({ type: 'createRoom' }));
+});
 
-    socket.onopen = function() {
-        console.log('WebSocket接続が確立されました。');
-    };
+document.getElementById('joinRoom').addEventListener('click', () => {
+  const roomID = document.getElementById('roomID').value;
+  socket.send(JSON.stringify({ type: 'joinRoom', roomID }));
+});
 
-    socket.onmessage = function(event) {
-        const data = JSON.parse(event.data);
+document.getElementById('exitGame').addEventListener('click', () => {
+  socket.send(JSON.stringify({ type: 'exitGame' }));
+  showLobby();
+});
 
-        switch (data.type) {
-            case 'room_created':
-                roomId = data.roomId;
-                document.getElementById('lobby').classList.add('hidden');
-                document.getElementById('game').classList.remove('hidden');
-                break;
+document.querySelectorAll('.cell').forEach(cell => {
+  cell.addEventListener('click', () => {
+    if (cell.textContent === '' && playerSymbol) {
+      const index = cell.getAttribute('data-index');
+      socket.send(JSON.stringify({ type: 'makeMove', index }));
+    }
+  });
+});
 
-            case 'start_game':
-                symbol = data.symbol;
-                document.getElementById('lobby').classList.add('hidden');
-                document.getElementById('game').classList.remove('hidden');
-                break;
+socket.addEventListener('message', (event) => {
+  const data = JSON.parse(event.data);
 
-            case 'move_made':
-                const cell = document.querySelector(`.cell[data-index="${data.position}"]`);
-                cell.textContent = data.symbol;
-                break;
+  switch (data.type) {
+    case 'roomCreated':
+      document.getElementById('roomID').value = data.roomID;
+      break;
 
-            case 'left_room':
-                document.getElementById('game').classList.add('hidden');
-                document.getElementById('lobby').classList.remove('hidden');
-                break;
+    case 'startGame':
+      playerSymbol = data.symbol;
+      showGame();
+      break;
 
-            case 'error':
-                document.getElementById('error').textContent = data.message;
-                document.getElementById('error').classList.remove('hidden');
-                break;
-        }
-    };
+    case 'moveMade':
+      document.querySelector(`.cell[data-index="${data.index}"]`).textContent = data.symbol;
+      break;
 
-    socket.onclose = function() {
-        console.log('WebSocket接続が閉じられました。');
-        setTimeout(connectWebSocket, 1000); // 1秒後に再接続
-    };
+    case 'gameEnd':
+      document.getElementById('gameStatus').textContent = data.result === 'draw' ? '引き分けです！' : `${data.result} の勝ちです！`;
+      break;
 
-    socket.onerror = function(error) {
-        console.error('WebSocketエラー:', error);
-    };
+    case 'error':
+      document.getElementById('errorMessage').textContent = data.message;
+      break;
+  }
+});
+
+function showLobby() {
+  document.getElementById('lobby').style.display = 'block';
+  document.getElementById('game').style.display = 'none';
 }
 
-// WebSocket接続を開始
-connectWebSocket();
+function showGame() {
+  document.getElementById('lobby').style.display = 'none';
+  document.getElementById('game').style.display = 'block';
+}
