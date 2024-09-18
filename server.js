@@ -12,18 +12,12 @@ const server = https.createServer({
 
 const wss = new WebSocket.Server({ server });
 
-// クライアント接続時の処理
-wss.on('connection', (ws) => {
-  let roomID = null;
-  let playerSymbol = null;
-
-  // WebSocketの処理（既存のコード）...
-});
+// WebSocket の処理を記述（既存のコードをここに入れる）
 
 // 静的ファイルを提供
 app.use(express.static('public'));
 
-// サーバーのポート
+// HTTPS サーバーをポート 3000 でリッスン
 server.listen(3000, () => {
-  console.log('HTTPS WebSocket server started on port 3000');
+  console.log('Secure WebSocket server started on port 3000');
 });
