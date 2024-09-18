@@ -1,4 +1,6 @@
-const socket = new WebSocket('ws://<サーバーのIPアドレス>:3000');
+// script.js
+const socket = new WebSocket('wss://192.168.1.5:3000');  // ws://からwss://に変更
+
 
 let playerSymbol = null;
 
