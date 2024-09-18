@@ -1,6 +1,4 @@
-// script.js
-const wss = new WebSocket.Server({ port: 8080 });
-
+const socket = new WebSocket('wss://192.168.1.5:8080');
 
 let playerSymbol = null;
 
