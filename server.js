@@ -1,11 +1,10 @@
 const fs = require('fs');
 const https = require('https');
-const express = require('express');
 const WebSocket = require('ws');
-
+const express = require('express');
 const app = express();
 
-// HTTPS サーバーの作成
+// HTTPSサーバーの作成
 const server = https.createServer({
   key: fs.readFileSync('key.pem'),  // 秘密鍵
   cert: fs.readFileSync('cert.pem') // 証明書
@@ -13,10 +12,18 @@ const server = https.createServer({
 
 const wss = new WebSocket.Server({ server });
 
+// クライアント接続時の処理
+wss.on('connection', (ws) => {
+  let roomID = null;
+  let playerSymbol = null;
+
+  // WebSocketの処理（既存のコード）...
+});
+
 // 静的ファイルを提供
 app.use(express.static('public'));
 
-// サーバー起動
+// サーバーのポート
 server.listen(3000, () => {
-  console.log('HTTPS Server started on port 3000');
+  console.log('HTTPS WebSocket server started on port 3000');
 });
