@@ -1,7 +1,5 @@
 // script.js
-const socket = new WebSocket('ws://192.168.1.5:3000');
-
-
+const socket = new WebSocket('wss://192.168.1.5:3000');
 
 let playerSymbol = null;
 
