@@ -1,66 +1,127 @@
+onst http = require('http');
 const WebSocket = require('ws');
-const http = require('http');
+const express = require('express');
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
 
-// HTTPサーバーを作成
-const server = http.createServer();
-const wss = new WebSocket.Server({
-    server,
-    perMessageDeflate: false  // 圧縮を無効化
+let rooms = {};  // ルームの管理
+
+// クライアント接続時の処理
+wss.on('connection', (ws) => {
+  let roomID = null;
+  let playerSymbol = null;
+
+  // クライアントからのメッセージを受信
+  ws.on('message', (message) => {
+    const data = JSON.parse(message);
+
+    switch (data.type) {
+      case 'createRoom':
+        roomID = generateRoomID();
+        rooms[roomID] = { players: [ws], gameState: Array(9).fill(null) };
+        playerSymbol = 'O';  // ルームを作ったプレイヤーは "O"
+        ws.send(JSON.stringify({ type: 'roomCreated', roomID }));
+        break;
+
+      case 'joinRoom':
+        roomID = data.roomID;
+        if (rooms[roomID] && rooms[roomID].players.length < 2) {
+          playerSymbol = 'X';  // 2人目のプレイヤーは "X"
+          rooms[roomID].players.push(ws);
+          startGame(roomID);  // ゲーム開始
+        } else {
+          ws.send(JSON.stringify({ type: 'error', message: 'Room is full or does not exist' }));
+        }
+        break;
+
+      case 'makeMove':
+        if (rooms[roomID]) {
+          const { gameState } = rooms[roomID];
+          if (gameState[data.index] === null) {
+            gameState[data.index] = playerSymbol;
+            broadcastMove(roomID, data.index, playerSymbol);
+            checkGameEnd(roomID);
+          }
+        }
+        break;
+
+      case 'exitGame':
+        exitRoom(roomID, ws);
+        break;
+    }
+  });
+
+  // クライアントが切断されたときの処理
+  ws.on('close', () => {
+    exitRoom(roomID, ws);
+  });
 });
 
-let rooms = {};  // ルームを格納
-let players = {}; // プレイヤーの状態
+// ルームIDの生成
+function generateRoomID() {
+  return Math.random().toString(36).substring(2, 9);
+}
 
-// WebSocket接続イベント
-wss.on('connection', function connection(ws) {
-    ws.on('message', function incoming(message) {
-        const data = JSON.parse(message);
+// ゲーム開始時にプレイヤーに通知
+function startGame(roomID) {
+  rooms[roomID].players.forEach((player, index) => {
+    const symbol = index === 0 ? 'O' : 'X';
+    player.send(JSON.stringify({ type: 'startGame', symbol }));
+  });
+}
 
-        switch (data.type) {
-            // ルーム作成
-            case 'create_room':
-                const roomId = 'room_' + Date.now();
-                rooms[roomId] = [ws]; 
-                players[ws] = { roomId, symbol: 'X' }; 
-                ws.send(JSON.stringify({ type: 'room_created', roomId }));
-                break;
+// ゲームの状態をすべてのプレイヤーに送信
+function broadcastMove(roomID, index, symbol) {
+  rooms[roomID].players.forEach(player => {
+    player.send(JSON.stringify({ type: 'moveMade', index, symbol }));
+  });
+}
 
-            // ルームに参加
-            case 'join_room':
-                if (rooms[data.roomId] && rooms[data.roomId].length === 1) {
-                    rooms[data.roomId].push(ws);
-                    players[ws] = { roomId: data.roomId, symbol: 'O' };
-                    rooms[data.roomId].forEach(player => player.send(JSON.stringify({ type: 'start_game' })));
-                } else {
-                    ws.send(JSON.stringify({ type: 'error', message: 'Room is full or does not exist.' }));
-                }
-                break;
+// ゲームが終了したかどうかをチェック
+function checkGameEnd(roomID) {
+  const { gameState } = rooms[roomID];
+  const winningCombinations = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
+  ];
 
-            // 動きがあった場合の処理
-            case 'make_move':
-                const room = rooms[players[ws].roomId];
-                room.forEach(player => player.send(JSON.stringify({ type: 'move_made', position: data.position, symbol: players[ws].symbol })));
-                break;
+  // 勝敗判定
+  for (const [a, b, c] of winningCombinations) {
+    if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+      broadcastGameEnd(roomID, gameState[a]);
+      return;
+    }
+  }
 
-            // ルームを退出
-            case 'leave_room':
-                const leaveRoomId = players[ws].roomId;
-                rooms[leaveRoomId] = rooms[leaveRoomId].filter(player => player !== ws);
-                ws.send(JSON.stringify({ type: 'left_room' }));
-                break;
-        }
-    });
+  // 引き分け判定
+  if (gameState.every(cell => cell !== null)) {
+    broadcastGameEnd(roomID, 'draw');
+  }
+}
 
-    ws.on('close', function close() {
-        const playerInfo = players[ws];
-        if (playerInfo) {
-            const { roomId } = playerInfo;
-            rooms[roomId] = rooms[roomId].filter(player => player !== ws);
-        }
-    });
-});
+// 勝敗の通知
+function broadcastGameEnd(roomID, result) {
+  rooms[roomID].players.forEach(player => {
+    player.send(JSON.stringify({ type: 'gameEnd', result }));
+  });
+}
 
-// ポート8080でサーバーをリッスン
-server.listen(8080, function listening() {
-    console.log('Listening on %d', server.address().port);
+// ルームからの退出処理
+function exitRoom(roomID, ws) {
+  if (roomID && rooms[roomID]) {
+    rooms[roomID].players = rooms[roomID].players.filter(player => player !== ws);
+    if (rooms[roomID].players.length === 0) {
+      delete rooms[roomID];  // ルームを削除
+    }
+  }
+}
+
+// 静的ファイルを提供
+app.use(express.static('public'));
+
+// サーバーのポート
+server.listen(3000, () => {
+  console.log('Server started on port 3000');
 });
