@@ -1,5 +1,4 @@
 const socket = new WebSocket('ws://192.168.1.5:3000');
-
 let playerSymbol = null;
 
 document.getElementById('createRoom').addEventListener('click', () => {
