@@ -4,6 +4,8 @@ const WebSocket = require('ws');
 const express = require('express');
 const app = express();
 
+const rooms = {}; // ルーム情報を格納するオブジェクト
+
 // HTTPSサーバーの作成
 const server = https.createServer({
   key: fs.readFileSync('key.pem'),  // 秘密鍵ファイル
