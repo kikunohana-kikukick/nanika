@@ -4,7 +4,8 @@ const WebSocket = require('ws');
 const express = require('express');
 const app = express();
 
-const rooms = {}; // ルーム情報を格納するオブジェクト
+// ルームのデータを格納するオブジェクト
+const rooms = {};
 
 // HTTPSサーバーの作成
 const server = https.createServer({
