@@ -1,25 +1,21 @@
-const socket = new WebSocket('wss://192.168.1.5:8080');
+const socket = new WebSocket('wss://192.168.1.5:8080'); // サーバーの IP を適切に設定する
 
 let playerSymbol = null;
 
-// 「ルーム作成」ボタンがクリックされたときの処理
 document.getElementById('createRoom').addEventListener('click', () => {
   socket.send(JSON.stringify({ type: 'createRoom' }));
 });
 
-// 「ルームに参加」ボタンがクリックされたときの処理
 document.getElementById('joinRoom').addEventListener('click', () => {
   const roomID = document.getElementById('roomID').value;
   socket.send(JSON.stringify({ type: 'joinRoom', roomID }));
 });
 
-// 「ゲーム終了」ボタンがクリックされたときの処理
 document.getElementById('exitGame').addEventListener('click', () => {
   socket.send(JSON.stringify({ type: 'exitGame' }));
   showLobby();
 });
 
-// 各セルがクリックされたときの処理
 document.querySelectorAll('.cell').forEach(cell => {
   cell.addEventListener('click', () => {
     if (cell.textContent === '' && playerSymbol) {
@@ -29,7 +25,6 @@ document.querySelectorAll('.cell').forEach(cell => {
   });
 });
 
-// サーバーからのメッセージを受信したときの処理
 socket.addEventListener('message', (event) => {
   const data = JSON.parse(event.data);
 
@@ -57,13 +52,11 @@ socket.addEventListener('message', (event) => {
   }
 });
 
-// ロビー画面を表示する関数
 function showLobby() {
   document.getElementById('lobby').style.display = 'block';
   document.getElementById('game').style.display = 'none';
 }
 
-// ゲーム画面を表示する関数
 function showGame() {
   document.getElementById('lobby').style.display = 'none';
   document.getElementById('game').style.display = 'block';
