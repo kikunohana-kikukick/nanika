@@ -1,22 +1,17 @@
-const fs = require('fs');
-const https = require('https');
+const http = require('http');
 const WebSocket = require('ws');
 const express = require('express');
 const app = express();
-
-// ルームのデータを格納するオブジェクト
-const rooms = {};
-
-// HTTPSサーバーの作成
-const server = https.createServer({
-  key: fs.readFileSync('key.pem'),  // 秘密鍵ファイル
-  cert: fs.readFileSync('cert.pem') // 証明書ファイル
-}, app);
-
-// WebSocket サーバーを HTTPS 上で起動
+const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// クライアント接続時の処理
+// ルームの管理オブジェクト
+let rooms = {};
+
+// 静的ファイルを提供 (クライアントの HTML, CSS, JS を提供)
+app.use(express.static('public'));
+
+// WebSocket サーバーの処理
 wss.on('connection', (ws) => {
   let roomID = null;
   let playerSymbol = null;
@@ -29,16 +24,16 @@ wss.on('connection', (ws) => {
       case 'createRoom':
         roomID = generateRoomID();
         rooms[roomID] = { players: [ws], gameState: Array(9).fill(null) };
-        playerSymbol = 'O';  // ルームを作ったプレイヤーは "O"
+        playerSymbol = 'O'; // ルームを作ったプレイヤーは "O"
         ws.send(JSON.stringify({ type: 'roomCreated', roomID }));
         break;
 
       case 'joinRoom':
         roomID = data.roomID;
         if (rooms[roomID] && rooms[roomID].players.length < 2) {
-          playerSymbol = 'X';  // 2人目のプレイヤーは "X"
+          playerSymbol = 'X'; // 2人目のプレイヤーは "X"
           rooms[roomID].players.push(ws);
-          startGame(roomID);  // ゲーム開始
+          startGame(roomID); // ゲーム開始
         } else {
           ws.send(JSON.stringify({ type: 'error', message: 'Room is full or does not exist' }));
         }
@@ -122,15 +117,12 @@ function exitRoom(roomID, ws) {
   if (roomID && rooms[roomID]) {
     rooms[roomID].players = rooms[roomID].players.filter(player => player !== ws);
     if (rooms[roomID].players.length === 0) {
-      delete rooms[roomID];  // ルームを削除
+      delete rooms[roomID]; // ルームを削除
     }
   }
 }
 
-// 静的ファイルを提供
-app.use(express.static('public'));
-
-// HTTPS サーバーをポート 8080 で起動
-server.listen(8080, () => {
-  console.log('Secure WebSocket server started on port 8080');
+// サーバーをポート 3000 で起動
+server.listen(3000, () => {
+  console.log('Server started on port 3000');
 });
