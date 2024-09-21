@@ -3,11 +3,15 @@ let socket = new WebSocket('ws://localhost:8080/'); // サーバーアドレス�
 
 let playerSymbol = null;
 let isConnected = false;
+let reconnectInterval;
 
 // WebSocket接続が確立された時に呼ばれる
 socket.addEventListener('open', (event) => {
     isConnected = true;
     console.log('WebSocket connection established.');
+
+    // 再接続の試行を停止
+    clearInterval(reconnectInterval);
 
     // 接続が確立された後にボタンを有効化
     document.getElementById('createRoom').disabled = false;
@@ -59,6 +63,7 @@ socket.addEventListener('open', (event) => {
 // WebSocketエラーハンドリング
 socket.addEventListener('error', (event) => {
     console.error('WebSocket error:', event);
+    document.getElementById('errorMessage').textContent = 'WebSocket エラーが発生しました。';
 });
 
 // WebSocket接続が閉じられた時の処理
@@ -70,6 +75,15 @@ socket.addEventListener('close', (event) => {
     document.getElementById('createRoom').disabled = true;
     document.getElementById('joinRoom').disabled = true;
     document.getElementById('exitGame').disabled = true;
+
+    // 再接続を試みる
+    document.getElementById('errorMessage').textContent = 'WebSocket 接続が切断されました。再接続を試みます。';
+    reconnectInterval = setInterval(() => {
+        if (!isConnected) {
+            console.log('再接続を試みます...');
+            socket = new WebSocket('ws://localhost:8080/'); // サーバーアドレスに合わせて再接続
+        }
+    }, 5000); // 5秒ごとに再接続を試みる
 });
 
 // サーバーからのメッセージ受信
@@ -81,11 +95,12 @@ socket.addEventListener('message', (event) => {
         case 'roomCreated':
             console.log('Room created with ID:', data.roomID); // デバッグ用: ルームIDを表示
             document.getElementById('roomID').value = data.roomID;
+            document.getElementById('errorMessage').textContent = ''; // エラーメッセージをクリア
             break;
-        
 
         case 'startGame':
             playerSymbol = data.symbol;
+            document.getElementById('errorMessage').textContent = ''; // エラーメッセージをクリア
             showGame();
             break;
 
@@ -100,6 +115,10 @@ socket.addEventListener('message', (event) => {
         case 'error':
             document.getElementById('errorMessage').textContent = data.message;
             break;
+
+        default:
+            console.error('不明なメッセージタイプを受信しました:', data.type);
+            break;
     }
 });
 
@@ -107,6 +126,7 @@ socket.addEventListener('message', (event) => {
 function showLobby() {
     document.getElementById('lobby').style.display = 'block';
     document.getElementById('game').style.display = 'none';
+    clearBoard(); // ゲームボードをクリア
 }
 
 // ゲーム画面を表示する関数
@@ -114,3 +134,17 @@ function showGame() {
     document.getElementById('lobby').style.display = 'none';
     document.getElementById('game').style.display = 'block';
 }
+
+// ゲームボードをクリアする関数
+function clearBoard() {
+    document.querySelectorAll('.cell').forEach(cell => {
+        cell.textContent = '';
+    });
+}
+
+// ウィンドウが閉じられるときにWebSocket接続を閉じる
+window.addEventListener('beforeunload', () => {
+    if (socket) {
+        socket.close();
+    }
+});
