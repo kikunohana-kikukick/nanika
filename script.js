@@ -4,10 +4,13 @@ let socket = new WebSocket('ws://localhost:8080/'); // サーバーアドレス�
 let playerSymbol = null;
 let isConnected = false;
 let reconnectInterval;
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 5; // 再接続の最大試行回数
 
 // WebSocket接続が確立された時に呼ばれる
 socket.addEventListener('open', (event) => {
     isConnected = true;
+    reconnectAttempts = 0; // 再接続回数をリセット
     console.log('WebSocket connection established.');
 
     // 再接続の試行を停止
@@ -63,27 +66,43 @@ socket.addEventListener('open', (event) => {
 // WebSocketエラーハンドリング
 socket.addEventListener('error', (event) => {
     console.error('WebSocket error:', event);
-    document.getElementById('errorMessage').textContent = 'WebSocket エラーが発生しました。';
+    document.getElementById('errorMessage').textContent = 'WebSocket エラーが発生しました。接続設定を確認してください。';
+    console.log('エラーメッセージの詳細:', event); // エラーの詳細情報をログに記録
 });
 
 // WebSocket接続が閉じられた時の処理
 socket.addEventListener('close', (event) => {
     isConnected = false;
     console.log('WebSocket connection closed:', event);
+    document.getElementById('errorMessage').textContent = 'WebSocket 接続が切断されました。再接続を試みます。';
 
     // WebSocket接続が閉じられた後にボタンを無効化
     document.getElementById('createRoom').disabled = true;
     document.getElementById('joinRoom').disabled = true;
     document.getElementById('exitGame').disabled = true;
 
-    // 再接続を試みる
-    document.getElementById('errorMessage').textContent = 'WebSocket 接続が切断されました。再接続を試みます。';
-    reconnectInterval = setInterval(() => {
-        if (!isConnected) {
-            console.log('再接続を試みます...');
-            socket = new WebSocket('ws://localhost:8080/'); // サーバーアドレスに合わせて再接続
-        }
-    }, 5000); // 5秒ごとに再接続を試みる
+    // 再接続を試みる（上限回数まで）
+    if (reconnectAttempts < maxReconnectAttempts) {
+        reconnectInterval = setInterval(() => {
+            if (!isConnected) {
+                reconnectAttempts++;
+                console.log(`再接続を試みます... (${reconnectAttempts}/${maxReconnectAttempts})`);
+                socket = new WebSocket('ws://localhost:8080/'); // サーバーアドレスに合わせて再接続
+                socket.addEventListener('open', () => {
+                    console.log('再接続に成功しました。');
+                    document.getElementById('errorMessage').textContent = ''; // エラーメッセージをクリア
+                    clearInterval(reconnectInterval);
+                });
+                socket.addEventListener('error', (event) => {
+                    console.error('再接続中の WebSocket エラー:', event);
+                });
+            } else {
+                clearInterval(reconnectInterval);
+            }
+        }, 5000); // 5秒ごとに再接続を試みる
+    } else {
+        document.getElementById('errorMessage').textContent = '再接続に失敗しました。サーバーの状態を確認してください。';
+    }
 });
 
 // サーバーからのメッセージ受信
