@@ -1,5 +1,5 @@
 // WebSocket接続を作成
-let socket = new WebSocket('ws://localhost:8080/'); // サーバーアドレスに合わせてポートを設定
+let socket = new WebSocket('wss://localhost:8080/'); // 'ws://' を 'wss://' に変更して、セキュア接続を使用
 
 let playerSymbol = null;
 let isConnected = false;
@@ -87,7 +87,7 @@ socket.addEventListener('close', (event) => {
             if (!isConnected) {
                 reconnectAttempts++;
                 console.log(`再接続を試みます... (${reconnectAttempts}/${maxReconnectAttempts})`);
-                socket = new WebSocket('ws://localhost:8080/'); // サーバーアドレスに合わせて再接続
+                socket = new WebSocket('wss://localhost:8080/'); // サーバーアドレスに合わせて再接続
                 socket.addEventListener('open', () => {
                     console.log('再接続に成功しました。');
                     document.getElementById('errorMessage').textContent = ''; // エラーメッセージをクリア
