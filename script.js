@@ -75,11 +75,14 @@ socket.addEventListener('close', (event) => {
 // サーバーからのメッセージ受信
 socket.addEventListener('message', (event) => {
     const data = JSON.parse(event.data);
+    console.log('Received message:', data); // デバッグ用: サーバーから受け取ったメッセージを表示
 
     switch (data.type) {
         case 'roomCreated':
+            console.log('Room created with ID:', data.roomID); // デバッグ用: ルームIDを表示
             document.getElementById('roomID').value = data.roomID;
             break;
+        
 
         case 'startGame':
             playerSymbol = data.symbol;
