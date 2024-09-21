@@ -122,7 +122,7 @@ function exitRoom(roomID, ws) {
   }
 }
 
-// サーバーをポート 3000 で起動
-server.listen(3000, () => {
-  console.log('Server started on port 8000');
+// サーバーをポート 8080 で起動
+server.listen(8080, () => {
+  console.log('Server started on port 8080');
 });
