@@ -1,4 +1,4 @@
-const socket = new WebSocket('ws://localhost:3000'); // デプロイ後は 'wss://<デプロイしたアドレス>'
+const socket = new WebSocket('ws://localhost:8000'); // デプロイ後は 'wss://<デプロイしたアドレス>'
 
 let playerSymbol = null;
 
