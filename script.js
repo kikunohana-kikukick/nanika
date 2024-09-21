@@ -1,47 +1,41 @@
 const socket = new WebSocket('ws://localhost:8080/'); // サーバーと同じポートに合わせる
 
-let isConnected = false;
 let playerSymbol = null;
 
-// WebSocket接続が確立されたときに呼ばれる
+// ボタンを無効化
+document.getElementById('createRoom').disabled = true;
+document.getElementById('joinRoom').disabled = true;
+document.getElementById('exitGame').disabled = true;
+
+// WebSocket接続が確立されたときの処理
 socket.addEventListener('open', () => {
-  isConnected = true;
   console.log('WebSocket connection established.');
+  
+  // 接続が確立されたらボタンを有効化
+  document.getElementById('createRoom').disabled = false;
+  document.getElementById('joinRoom').disabled = false;
+  document.getElementById('exitGame').disabled = false;
 });
 
 document.getElementById('createRoom').addEventListener('click', () => {
-  if (isConnected) {
-    socket.send(JSON.stringify({ type: 'createRoom' }));
-  } else {
-    console.error('WebSocket is not connected yet.');
-  }
+  socket.send(JSON.stringify({ type: 'createRoom' }));
 });
 
 document.getElementById('joinRoom').addEventListener('click', () => {
-  if (isConnected) {
-    const roomID = document.getElementById('roomID').value;
-    socket.send(JSON.stringify({ type: 'joinRoom', roomID }));
-  } else {
-    console.error('WebSocket is not connected yet.');
-  }
+  const roomID = document.getElementById('roomID').value;
+  socket.send(JSON.stringify({ type: 'joinRoom', roomID }));
 });
 
 document.getElementById('exitGame').addEventListener('click', () => {
-  if (isConnected) {
-    socket.send(JSON.stringify({ type: 'exitGame' }));
-    showLobby();
-  } else {
-    console.error('WebSocket is not connected yet.');
-  }
+  socket.send(JSON.stringify({ type: 'exitGame' }));
+  showLobby();
 });
 
 document.querySelectorAll('.cell').forEach(cell => {
   cell.addEventListener('click', () => {
-    if (isConnected && cell.textContent === '' && playerSymbol) {
+    if (cell.textContent === '' && playerSymbol) {
       const index = cell.getAttribute('data-index');
       socket.send(JSON.stringify({ type: 'makeMove', index }));
-    } else if (!isConnected) {
-      console.error('WebSocket is not connected yet.');
     }
   });
 });
@@ -74,22 +68,13 @@ socket.addEventListener('message', (event) => {
   }
 });
 
-// ロビー画面の表示
-function showLobby() {
-  document.getElementById('lobby').style.display = 'block';
-  document.getElementById('game').style.display = 'none';
-}
-
-// ゲーム画面の表示
-function showGame() {
-  document.getElementById('lobby').style.display = 'none';
-  document.getElementById('game').style.display = 'block';
-}
-
 // WebSocket接続が閉じられたときの処理
 socket.addEventListener('close', () => {
-  isConnected = false;
   console.error('WebSocket connection closed.');
+  // ボタンを再び無効化する
+  document.getElementById('createRoom').disabled = true;
+  document.getElementById('joinRoom').disabled = true;
+  document.getElementById('exitGame').disabled = true;
 });
 
 // エラーハンドリング
