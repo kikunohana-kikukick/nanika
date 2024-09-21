@@ -16,51 +16,84 @@ wss.on('connection', (ws) => {
     let roomID = null;
     let playerSymbol = null;
 
+    ws.isAlive = true; // クライアントが接続しているかを確認するためのフラグ
+
     // クライアントからのメッセージを受信
     ws.on('message', (message) => {
-        const data = JSON.parse(message);
+        try {
+            const data = JSON.parse(message);
 
-        switch (data.type) {
-            case 'createRoom':
-                roomID = generateRoomID();
-                rooms[roomID] = { players: [ws], gameState: Array(9).fill(null) };
-                playerSymbol = 'O'; // ルームを作ったプレイヤーは "O"
-                ws.send(JSON.stringify({ type: 'roomCreated', roomID }));
-                break;
+            switch (data.type) {
+                case 'createRoom':
+                    roomID = generateRoomID();
+                    rooms[roomID] = { players: [ws], gameState: Array(9).fill(null) };
+                    playerSymbol = 'O'; // ルームを作ったプレイヤーは "O"
+                    ws.send(JSON.stringify({ type: 'roomCreated', roomID }));
+                    break;
 
-            case 'joinRoom':
-                roomID = data.roomID;
-                if (rooms[roomID] && rooms[roomID].players.length < 2) {
-                    playerSymbol = 'X'; // 2人目のプレイヤーは "X"
-                    rooms[roomID].players.push(ws);
-                    startGame(roomID); // ゲーム開始
-                } else {
-                    ws.send(JSON.stringify({ type: 'error', message: 'Room is full or does not exist' }));
-                }
-                break;
-
-            case 'makeMove':
-                if (rooms[roomID]) {
-                    const { gameState } = rooms[roomID];
-                    if (gameState[data.index] === null) {
-                        gameState[data.index] = playerSymbol;
-                        broadcastMove(roomID, data.index, playerSymbol);
-                        checkGameEnd(roomID);
+                case 'joinRoom':
+                    roomID = data.roomID;
+                    if (rooms[roomID] && rooms[roomID].players.length < 2) {
+                        playerSymbol = 'X'; // 2人目のプレイヤーは "X"
+                        rooms[roomID].players.push(ws);
+                        startGame(roomID); // ゲーム開始
+                    } else {
+                        ws.send(JSON.stringify({ type: 'error', message: 'Room is full or does not exist' }));
                     }
-                }
-                break;
+                    break;
 
-            case 'exitGame':
-                exitRoom(roomID, ws);
-                break;
+                case 'makeMove':
+                    if (rooms[roomID]) {
+                        const { gameState } = rooms[roomID];
+                        if (gameState[data.index] === null) {
+                            gameState[data.index] = playerSymbol;
+                            broadcastMove(roomID, data.index, playerSymbol);
+                            checkGameEnd(roomID);
+                        } else {
+                            ws.send(JSON.stringify({ type: 'error', message: 'Invalid move' }));
+                        }
+                    }
+                    break;
+
+                case 'exitGame':
+                    exitRoom(roomID, ws);
+                    break;
+
+                default:
+                    ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));
+                    break;
+            }
+        } catch (e) {
+            console.error('Invalid message received:', message);
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
         }
+    });
+
+    ws.on('pong', () => {
+        ws.isAlive = true; // クライアントからの応答で接続が生きていることを確認
     });
 
     // クライアントが切断されたときの処理
     ws.on('close', () => {
         exitRoom(roomID, ws);
     });
+
+    ws.on('error', (err) => {
+        console.error('WebSocket Error:', err);
+    });
 });
+
+// 定期的に接続が生きているかチェックする
+setInterval(() => {
+    wss.clients.forEach((ws) => {
+        if (!ws.isAlive) {
+            console.log('Terminating inactive connection');
+            return ws.terminate();
+        }
+        ws.isAlive = false;
+        ws.ping();
+    });
+}, 30000); // 30秒毎にチェック
 
 // ルームIDの生成
 function generateRoomID() {
@@ -116,13 +149,16 @@ function broadcastGameEnd(roomID, result) {
 function exitRoom(roomID, ws) {
     if (roomID && rooms[roomID]) {
         rooms[roomID].players = rooms[roomID].players.filter(player => player !== ws);
+        console.log(`Player exited room: ${roomID}, remaining players: ${rooms[roomID].players.length}`);
         if (rooms[roomID].players.length === 0) {
             delete rooms[roomID]; // ルームを削除
+            console.log(`Room ${roomID} deleted`);
         }
     }
 }
 
 // サーバーをポート 8080 で起動
-server.listen(8080, () => {
-    console.log('Server started on port 8080');
+const PORT = 8080; // ポート番号を変更したい場合はここを変更
+server.listen(PORT, () => {
+    console.log(`Server started on port ${PORT}`);
 });
