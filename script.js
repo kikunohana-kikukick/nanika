@@ -1,4 +1,4 @@
-const socket = new WebSocket('ws://localhost:8000'); // デプロイ後は 'wss://<デプロイしたアドレス>'
+const socket = new WebSocket('ws://localhost:8080/'); // サーバーと同じポートに合わせる
 
 let playerSymbol = null;
 
